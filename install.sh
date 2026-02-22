@@ -1,19 +1,42 @@
 #!/bin/bash
-
-# 1. Criar diretórios necessários
-echo "Criando diretórios..."
 mkdir -p /data/coolify/custom_configs
 
-# 2. Baixar os arquivos de Bypass do SEU GitHub
-# Substitua 'SEU_USUARIO' pelo seu nome no GitHub
-RAW_URL="https://raw.githubusercontent.com/SEU_USUARIO/meu-chatwoot-unlocked/main"
+# Criar o Bypass da Licença
+cat << 'EOF' > /data/coolify/custom_configs/fazer_ai_hub.rb
+# frozen_string_literal: true
+class FazerAiHub
+  class << self
+    def installation_identifier; ChatwootHub.installation_identifier; end
+    def billing_url; "https://app.fazer.ai/api/billing"; end
+    def subscription_status; 'active'; end
+    def kanban_account_limit; 0; end
+    def feature_limit(feature_name, limit_key); 0; end
+    def instance_type; 'pro'; end
+    def enabled_features; ['kanban', 'captain', 'audit_logs', 'custom_roles']; end
+    def features; { 'kanban' => { 'account_limit' => 0 }, 'captain' => { 'enabled' => true } }; end
+    def feature_enabled?(feature_name); true; end
+    def synced?; true; end
+    def subscription_active?; true; end
+    def subscription_period_end; (Time.current + 10.years).to_i; end
+    def sync_subscription; { 'status' => 'active' }; end
+    def last_known_subscription_status; 'active'; end
+    def clear_cache!; nil; end
+  end
+end
+EOF
 
-echo "Baixando arquivos de configuração..."
-curl -sSL "$RAW_URL/configs/fazer_ai_hub.rb" -o /data/coolify/custom_configs/fazer_ai_hub.rb
-curl -sSL "$RAW_URL/configs/features_helper.rb" -o /data/coolify/custom_configs/features_helper.rb
+# Criar o Bypass da Interface
+cat << 'EOF' > /data/coolify/custom_configs/features_helper.rb
+module SuperAdmin::FeaturesHelper
+  def self.all_features
+    YAML.load(ERB.new(Rails.root.join('app/helpers/super_admin/features.yml').read).result).with_indifferent_access
+  end
+  def self.plan_details; "Enterprise Edition (Unlocked)"; end
+  def self.fazer_ai_subscription_details; "Status: <span class='text-green-600 font-semibold'>Active</span>".html_safe; end
+  def self.subscription_status_label; "Status: <span class='text-green-600 font-semibold'>Active</span>"; end
+  def self.kanban_accounts_text; "Kanban: Unlimited"; end
+  def self.fazer_ai_features; all_features.select { |_, attrs| attrs[:fazer_ai] }; end
+end
+EOF
 
-# 3. Baixar o docker-compose.yml
-curl -sSL "$RAW_URL/docker-compose.yml" -o /data/coolify/docker-compose.yml
-
-echo "Arquivos instalados com sucesso em /data/coolify/custom_configs/"
-echo "Agora basta importar o docker-compose no seu Coolify."
+echo "Arquivos de destrave criados com sucesso!"
